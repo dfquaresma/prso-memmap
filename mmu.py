@@ -70,23 +70,35 @@ class LinearMapping(object):
       self.swap = SecondChance()
 
     def map(self, virtual_address, frame_id=None, offset=None):
-        if not frame_id and not offset:
+        if frame_id == None and offset == None:
           frame_id = virtual_address >> 12
           offset = int(bin(virtual_address)[2 + 20:], 2)
 
         hw_address, n_pagefaults = 0, 0 # tmp values
         if frame_id in self.page_table:
+            if self.page_table[frame_id] == None:
+                n_pagefaults += 1
+                hw_begin = self.physicalMemory.get() # also known as frame
+                if hw_begin == None:
+                    frame_to_swap = self.swap.evict()
+                    mem_to_use = self.page_table[frame_to_swap]
+                    self.page_table[frame_to_swap] = None
+                    self.page_table[frame_id] = mem_to_use
+
+                else:
+                  self.page_table[frame_id] = hw_begin 
+                    
             hw_begin = self.page_table[frame_id]
             self.swap.access(frame_id)
-
+    
         else:
             n_pagefaults = 1
-            hw_begin = self.physicalMemory.get()
+            hw_begin = self.physicalMemory.get() # also known as frame
             if hw_begin == None:
                 frame_to_swap = self.swap.evict()
                 mem_to_erase = self.page_table[frame_to_swap]
                 self.physicalMemory.clear(mem_to_erase)
-                del self.page_table[frame_to_swap]
+                self.page_table[frame_to_swap] = None
                 hw_begin = self.physicalMemory.get()
 
             self.physicalMemory.put(hw_begin)
@@ -114,19 +126,51 @@ class HierarchicalMapping(object):
             self.PT1_table[PT1] = LinearMapping(physicalMemory=self.physicalMemory)
 
         PT2_table = self.PT1_table[PT1]
-        hw_address, _, n_pagefaults = PT2_table.map(virtual_address, frame_id=PT2, offset=offset)
+        hw_address, _ , n_pagefaults = PT2_table.map(virtual_address, frame_id=PT2, offset=offset)
         return hw_address + offset, frame_id, n_pagefaults + pagefault
+
+class Page:
+    def __init__(self, page_id, pid):
+      self.page_id = page_id
+      self.pid = pid 
 
 class InvertedMapping(object):
 
     def __init__(self, memory_size=8589934592, page_size=4096):
-      super(HierarchicalMapping, self).__init__()
+      super(InvertedMapping, self).__init__()
       self.physicalMemory = PhysicalMemory(memory_size, page_size)
       self.swap = SecondChance()
-      self.page_table = {}
+      self.page_size = page_size
+      self.page_table = []
     
     def map(self, virtual_address):
-        pass
+        pid = virtual_address >> 42
+        page_id = int(bin(virtual_address >> 12)[2 + 22:], 2)
+        offset = int(bin(virtual_address)[2 + 42:], 2)
+        
+        hw_begin, n_pagefaults = None, 0 # tmp values
+        for i in range(len(self.page_table)):
+            page = self.page_table[i]
+            if page.pid == pid and page.page_id == page_id:
+                hw_begin = i * self.page_size
+                break
+        
+        if hw_begin == None:
+            n_pagefaults += 1
+            hw_begin = self.physicalMemory.get()
+            page = Page(page_id, pid)
+            if hw_begin == None:
+                page_to_remove = self.swap.evict()
+                index = self.page_table.index(page_to_remove)
+                self.page_table[index] = page
+            else:
+                self.page_table.append(page)
+                hw_begin = (len(self.page_table) - 1) * self.page_size
+                self.physicalMemory.put(hw_begin)
+        
+        hw_address = hw_begin + offset
+        frame_id = hw_begin
+        return hw_address, frame_id, n_pagefaults
 
 class MMU(object):
 
