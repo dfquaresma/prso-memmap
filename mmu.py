@@ -1,4 +1,42 @@
 
+class Fifo(object):
+    def __init__(self):
+        self.queue = []
+        
+    def put(self, frameId):
+        self.queue.append(frameId)
+
+    def evict(self):
+        return self.queue.pop(0)
+
+class Frame:
+    def __init__(self, frameId):
+        self.frameId = frameId
+
+class SecondChance(Fifo):
+
+    def __init__(self):
+      super(SecondChance, self).__init__()
+      
+    def put(self, frameId, bit=0):
+        frame = Frame(frameId)
+        frame.bit = bit
+        super(SecondChance, self).put(frame)
+
+    def evict(self):
+        while self.queue:
+            frame = super(SecondChance, self).evict()
+            if frame.bit == 1:
+                self.put(frame.frameId)
+            else:
+                return frame.frameId
+
+    def access(self, frameId):
+        for frame in self.queue:
+            if frame.frameId == frameId:
+                frame.bit =  1
+                break
+
 class PhysicalMemory(object):
     
     def __init__(self, memory_size, page_size):
@@ -17,6 +55,9 @@ class PhysicalMemory(object):
     def put(self, mem_address):
         self.address_table[mem_address] = True
 
+    def clear(self, mem_address):
+        self.address_table[mem_address] = False
+
 class LinearMapping(object):
 
     def __init__(self, memory_size=2147483648, page_size=4096, physicalMemory=None):
@@ -26,6 +67,7 @@ class LinearMapping(object):
 
       self.physicalMemory = physicalMemory
       self.page_table = {}
+      self.swap = SecondChance()
 
     def map(self, virtual_address, frame_id=None, offset=None):
         if not frame_id and not offset:
@@ -35,10 +77,18 @@ class LinearMapping(object):
         hw_address, n_pagefaults = 0, 0 # tmp values
         if frame_id in self.page_table:
             hw_begin = self.page_table[frame_id]
-            
+            self.swap.access(frame_id)
+
         else:
             n_pagefaults = 1
             hw_begin = self.physicalMemory.get()
+            if hw_begin == None:
+                frame_to_swap = self.swap.evict()
+                mem_to_erase = self.page_table[frame_to_swap]
+                self.physicalMemory.clear(mem_to_erase)
+                del self.page_table[frame_to_swap]
+                hw_begin = self.physicalMemory.get()
+
             self.physicalMemory.put(hw_begin)
             self.page_table[frame_id] = hw_begin
         
@@ -53,6 +103,7 @@ class HierarchicalMapping(object):
       self.PT1_table = {}
 
     def map(self, virtual_address):
+        frame_id = virtual_address >> 12
         PT1 = virtual_address >> 22
         PT2 = int(bin(virtual_address >> 12)[2 + 10:], 2)
         offset = int(bin(virtual_address)[2 + 20:], 2)
@@ -63,7 +114,7 @@ class HierarchicalMapping(object):
             self.PT1_table[PT1] = LinearMapping(physicalMemory=self.physicalMemory)
 
         PT2_table = self.PT1_table[PT1]
-        hw_address, frame_id, n_pagefaults = PT2_table.map(virtual_address, frame_id=PT2, offset=offset)
+        hw_address, _, n_pagefaults = PT2_table.map(virtual_address, frame_id=PT2, offset=offset)
         return hw_address + offset, frame_id, n_pagefaults + pagefault
 
 class InvertedMapping(object):
@@ -71,41 +122,25 @@ class InvertedMapping(object):
     def __init__(self, memory_size=8589934592, page_size=4096):
       super(HierarchicalMapping, self).__init__()
       self.physicalMemory = PhysicalMemory(memory_size, page_size)
+      self.swap = SecondChance()
+      self.page_table = {}
     
     def map(self, virtual_address):
         pass
 
-def testL():
-  print("LINEAR")
-  # Linear
-  t1 = 4294967295 # 11111111111111111111 111111111111 # 1 page faults
-  t2 = 4294840256 # 11111111111111100000 111111000000 # 1 page faults
-  t3 = 4294967232 # 11111111111111111111 111111000000 # 0 page faults
-  t4 = 4164943808 # 11111000001111111111 111111000000 # 1 page faults
-  t5 = 4164943871 # 11111000001111111111 111111111111 # 0 page faults
-  l = LinearMapping()
-  print(l.map(t1))
-  print(l.map(t2))
-  print(l.map(t3))
-  print(l.map(t4))
-  print(l.map(t5))
-  print()
+class MMU(object):
 
-def testH():
-  print("HIERARCHICAL")
-  # Hierarchical
-  t1 = 4294967295 # 1111111111 1111111111 111111111111 # 2 page faults
-  t2 = 4294840256 # 1111111111 1111100000 111111000000 # 1 page faults
-  t3 = 4294967232 # 1111111111 1111111111 111111000000 # 0 page faults
-  t4 = 4164943808 # 1111100000 1111111111 111111000000 # 2 page faults
-  t5 = 4164943871 # 1111100000 1111111111 111111111111 # 0 page faults
-  h = HierarchicalMapping()
-  print(h.map(t1))
-  print(h.map(t2))
-  print(h.map(t3))
-  print(h.map(t4))
-  print(h.map(t5))
-  print()
+    def __init__(self, mapping_type):
+      super(MMU, self).__init__()
+      if mapping_type == "linear":
+          self.mapping = LinearMapping()
+      elif mapping_type == "hierarchical":
+          self.mapping = HierarchicalMapping()
+      elif mapping_type == "inverted":
+          self.mapping = InvertedMapping()
+      else:
+          raise Exception("Not valid mapping")
 
-testL()
-testH()
+    def map(self, virtual_address):
+        hw_address, frame_id, n_pagefaults = self.mapping.map(virtual_address)
+        return {"hw_address": hw_address, "frame_id": frame_id, "n_pagefaults": n_pagefaults}
