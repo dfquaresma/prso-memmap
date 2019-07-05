@@ -69,28 +69,28 @@ class LinearMapping(object):
       self.page_table = {}
       self.swap = SecondChance()
 
-    def map(self, virtual_address, frame_id=None, offset=None):
-        if frame_id == None and offset == None:
+    def map(self, virtual_address, page_id=None, offset=None):
+        if page_id == None and offset == None:
             virtual_address = format(virtual_address, "032b")
-            frame_id = int(virtual_address[:32-12], 2)
+            page_id = int(virtual_address[:32-12], 2)
             offset = int(virtual_address[20:], 2)
 
         hw_address, n_pagefaults = 0, 0 # tmp values
-        if frame_id in self.page_table:
-            if self.page_table[frame_id] == None:
+        if page_id in self.page_table:
+            if self.page_table[page_id] == None:
                 n_pagefaults += 1
                 hw_begin = self.physicalMemory.get() # also known as frame
                 if hw_begin == None:
                     frame_to_swap = self.swap.evict()
                     mem_to_use = self.page_table[frame_to_swap]
                     self.page_table[frame_to_swap] = None
-                    self.page_table[frame_id] = mem_to_use
+                    self.page_table[page_id] = mem_to_use
 
                 else:
-                  self.page_table[frame_id] = hw_begin 
+                  self.page_table[page_id] = hw_begin 
                     
-            hw_begin = self.page_table[frame_id]
-            self.swap.access(frame_id)
+            hw_begin = self.page_table[page_id]
+            self.swap.access(page_id)
     
         else:
             n_pagefaults = 1
@@ -103,10 +103,10 @@ class LinearMapping(object):
                 hw_begin = self.physicalMemory.get()
 
             self.physicalMemory.put(hw_begin)
-            self.page_table[frame_id] = hw_begin
+            self.page_table[page_id] = hw_begin
         
         hw_address = hw_begin + offset
-        return hw_address, frame_id, n_pagefaults
+        return hw_address, hw_begin, n_pagefaults
 
 class HierarchicalMapping(object):
 
@@ -117,7 +117,6 @@ class HierarchicalMapping(object):
 
     def map(self, virtual_address):
         virtual_address = format(virtual_address, "032b")
-        frame_id = int(virtual_address[:32-12], 2)
         offset = int(virtual_address[20:], 2)
         PT1 = int(virtual_address[:32-22], 2)
         PT2 = int(virtual_address[32-22:32-12], 2)
@@ -128,8 +127,8 @@ class HierarchicalMapping(object):
             self.PT1_table[PT1] = LinearMapping(physicalMemory=self.physicalMemory)
 
         PT2_table = self.PT1_table[PT1]
-        hw_address, _ , n_pagefaults = PT2_table.map(virtual_address, frame_id=PT2, offset=offset)
-        return hw_address + offset, frame_id, n_pagefaults + pagefault
+        hw_address, frame_id , n_pagefaults = PT2_table.map(virtual_address, page_id=PT2, offset=offset)
+        return hw_address, frame_id, n_pagefaults + pagefault
 
 class Page:
     def __init__(self, page_id, pid):
