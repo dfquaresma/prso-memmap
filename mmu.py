@@ -71,8 +71,9 @@ class LinearMapping(object):
 
     def map(self, virtual_address, frame_id=None, offset=None):
         if frame_id == None and offset == None:
-          frame_id = virtual_address >> 12
-          offset = int(bin(virtual_address)[2 + 20:], 2)
+            virtual_address = format(virtual_address, "032b")
+            frame_id = int(virtual_address[:32-12], 2)
+            offset = int(virtual_address[20:], 2)
 
         hw_address, n_pagefaults = 0, 0 # tmp values
         if frame_id in self.page_table:
@@ -115,11 +116,12 @@ class HierarchicalMapping(object):
       self.PT1_table = {}
 
     def map(self, virtual_address):
-        frame_id = virtual_address >> 12
-        PT1 = virtual_address >> 22
-        PT2 = int(bin(virtual_address >> 12)[2 + 10:], 2)
-        offset = int(bin(virtual_address)[2 + 20:], 2)
-        
+        virtual_address = format(virtual_address, "032b")
+        frame_id = int(virtual_address[:32-12], 2)
+        offset = int(virtual_address[20:], 2)
+        PT1 = int(virtual_address[:32-22], 2)
+        PT2 = int(virtual_address[32-22:32-12], 2)
+
         pagefault = 0
         if PT1 not in self.PT1_table:
             pagefault += 1
@@ -143,11 +145,12 @@ class InvertedMapping(object):
       self.page_size = page_size
       self.page_table = []
     
-    def map(self, virtual_address):
-        pid = virtual_address >> 42
-        page_id = int(bin(virtual_address >> 12)[2 + 22:], 2)
-        offset = int(bin(virtual_address)[2 + 42:], 2)
-        
+    def map(self, virtual_address):        
+        virtual_address = format(virtual_address, "032b")
+        pid = int(virtual_address[:22], 2)
+        page_id = int(virtual_address[22:52], 2)
+        offset = int(virtual_address[52:], 2)
+
         hw_begin, n_pagefaults = None, 0 # tmp values
         for i in range(len(self.page_table)):
             page = self.page_table[i]
