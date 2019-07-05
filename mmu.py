@@ -142,5 +142,4 @@ class MMU(object):
           raise Exception("Not valid mapping")
 
     def map(self, virtual_address):
-        hw_address, frame_id, n_pagefaults = self.mapping.map(virtual_address)
-        return {"hw_address": hw_address, "frame_id": frame_id, "n_pagefaults": n_pagefaults}
+        return self.mapping.map(virtual_address)
