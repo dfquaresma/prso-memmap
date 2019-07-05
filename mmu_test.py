@@ -12,6 +12,7 @@ def linear_simple_page_fault_test():
   t3 = 4294967232 # 11111111111111111111 111111000000 # 0 page faults
   t4 = 4164943808 # 11111000001111111111 111111000000 # 1 page faults
   t5 = 4164943871 # 11111000001111111111 111111111111 # 0 page faults
+
   linear = MMU("linear")
   mmu_output = linear.map(t1)
   print_mmu_output(mmu_output)
@@ -42,6 +43,7 @@ def hierarchical_simple_page_fault_test():
   t3 = 4294967232 # 1111111111 1111111111 111111000000 # 0 page faults
   t4 = 4164943808 # 1111100000 1111111111 111111000000 # 2 page faults
   t5 = 4164943871 # 1111100000 1111111111 111111111111 # 0 page faults
+
   hierarchical = MMU("hierarchical")
   mmu_output = hierarchical.map(t1)
   print_mmu_output(mmu_output)
@@ -72,6 +74,7 @@ def inverted_simple_page_fault_test():
   t3 = 18446185521737629695 # 1111111111111110000000 111111111111111100000111111111 111111111111 # 1 page faults
   t4 = 18446185521737629695 # 1111111111111110000000 111111111111111100000111111111 111111111111 # 0 page faults
   t5 = 18446744073709551584 # 1111111111111111111111 111111111111111111111111111111 111111100000 # 0 page faults
+  
   inverted = MMU("inverted")
   mmu_output = inverted.map(t1)
   print_mmu_output(mmu_output)
