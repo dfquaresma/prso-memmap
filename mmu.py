@@ -66,6 +66,7 @@ class LinearMapping(object):
           physicalMemory = PhysicalMemory(memory_size, page_size)
 
       self.physicalMemory = physicalMemory
+      self.page_size = page_size
       self.page_table = {}
       self.swap = SecondChance()
 
@@ -106,7 +107,7 @@ class LinearMapping(object):
             self.page_table[page_id] = hw_begin
         
         hw_address = hw_begin + offset
-        return hw_address, hw_begin, n_pagefaults
+        return hw_address, hw_begin // self.page_size, n_pagefaults
 
 class HierarchicalMapping(object):
 
@@ -172,7 +173,7 @@ class InvertedMapping(object):
         
         hw_address = hw_begin + offset
         frame_id = hw_begin
-        return hw_address, frame_id, n_pagefaults
+        return hw_address, frame_id // self.page_size, n_pagefaults
 
 class MMU(object):
 
