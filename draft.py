@@ -1,5 +1,4 @@
 
-
 class PhysicalMemory(object):
     
     def __init__(self, memory_size, page_size):
@@ -17,22 +16,23 @@ class PhysicalMemory(object):
     
     def put(self, mem_address):
         self.address_table[mem_address] = True
-    
-    def evict(self, mem_address):
-        self.address_table[mem_address] = False
 
 class LinearMapping(object):
 
-    def __init__(self, memory_size=2147483648, page_size=4096):
+    def __init__(self, memory_size=2147483648, page_size=4096, physicalMemory=None):
       super(LinearMapping, self).__init__()
-      self.physicalMemory = PhysicalMemory(memory_size, page_size)
+      if not physicalMemory:
+          physicalMemory = PhysicalMemory(memory_size, page_size)
+
+      self.physicalMemory = physicalMemory
       self.page_table = {}
 
-    def map(self, virtual_address):
-        frame_id = virtual_address >> 12
-        offset = int(bin(virtual_address)[2 + 20:], 2)
+    def map(self, virtual_address, frame_id=None, offset=None):
+        if not frame_id and not offset:
+          frame_id = virtual_address >> 12
+          offset = int(bin(virtual_address)[2 + 20:], 2)
 
-        hw_address, frame_id, n_pagefaults = 0, 0, 0 # tmp values
+        hw_address, n_pagefaults = 0, 0 # tmp values
         if frame_id in self.page_table:
             hw_begin = self.page_table[frame_id]
             
@@ -49,8 +49,8 @@ class HierarchicalMapping(object):
 
     def __init__(self, memory_size=2147483648, page_size=4096):
       super(HierarchicalMapping, self).__init__()
+      self.physicalMemory = PhysicalMemory(memory_size, page_size)
       self.PT1_table = {}
-      self.PT2_table = LinearMapping()
 
     def map(self, virtual_address):
         PT1 = virtual_address >> 22
@@ -58,11 +58,12 @@ class HierarchicalMapping(object):
         offset = int(bin(virtual_address)[2 + 20:], 2)
         
         pagefault = 0
-        if PT1 not in self.PT1_table: # TODO(to check if it is correct)
+        if PT1 not in self.PT1_table:
             pagefault += 1
-            self.PT1_table[PT1] = PT2
+            self.PT1_table[PT1] = LinearMapping(physicalMemory=self.physicalMemory)
 
-        hw_address, frame_id, n_pagefaults = self.PT2_table.map(virtual_address)
+        PT2_table = self.PT1_table[PT1]
+        hw_address, frame_id, n_pagefaults = PT2_table.map(virtual_address, frame_id=PT2, offset=offset)
         return hw_address + offset, frame_id, n_pagefaults + pagefault
 
 class InvertedMapping(object):
@@ -73,3 +74,38 @@ class InvertedMapping(object):
     
     def map(self, virtual_address):
         pass
+
+def testL():
+  print("LINEAR")
+  # Linear
+  t1 = 4294967295 # 11111111111111111111 111111111111 # 1 page faults
+  t2 = 4294840256 # 11111111111111100000 111111000000 # 1 page faults
+  t3 = 4294967232 # 11111111111111111111 111111000000 # 0 page faults
+  t4 = 4164943808 # 11111000001111111111 111111000000 # 1 page faults
+  t5 = 4164943871 # 11111000001111111111 111111111111 # 0 page faults
+  l = LinearMapping()
+  print(l.map(t1))
+  print(l.map(t2))
+  print(l.map(t3))
+  print(l.map(t4))
+  print(l.map(t5))
+  print()
+
+def testH():
+  print("HIERARCHICAL")
+  # Hierarchical
+  t1 = 4294967295 # 1111111111 1111111111 111111111111 # 2 page faults
+  t2 = 4294840256 # 1111111111 1111100000 111111000000 # 1 page faults
+  t3 = 4294967232 # 1111111111 1111111111 111111000000 # 0 page faults
+  t4 = 4164943808 # 1111100000 1111111111 111111000000 # 2 page faults
+  t5 = 4164943871 # 1111100000 1111111111 111111111111 # 0 page faults
+  h = HierarchicalMapping()
+  print(h.map(t1))
+  print(h.map(t2))
+  print(h.map(t3))
+  print(h.map(t4))
+  print(h.map(t5))
+  print()
+
+testL()
+testH()
