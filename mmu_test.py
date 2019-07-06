@@ -5,7 +5,7 @@ def print_mmu_output(mmu_output):
     print({"hw_address": hw_address, "frame_id": frame_id, "n_pagefaults": n_pagefaults})
 
 def linear_simple_page_fault_test():
-  print("LINEAR")
+  print("LINEAR: SIMPLE PAGE FAULT TEST")
   # Linear
   t1 = 4294967295 # 11111111111111111111 111111111111 # 1 page faults
   t2 = 4294840256 # 11111111111111100000 111111000000 # 1 page faults
@@ -15,28 +15,18 @@ def linear_simple_page_fault_test():
 
   linear = MMU("linear")
   mmu_output = linear.map(t1)
-  print_mmu_output(mmu_output)
   assert (mmu_output[2] == 1)
-
   mmu_output = linear.map(t2)
-  print_mmu_output(mmu_output)
   assert (mmu_output[2] == 1)
-
   mmu_output = linear.map(t3)
-  print_mmu_output(mmu_output)
   assert (mmu_output[2] == 0)
-  
   mmu_output = linear.map(t4)
-  print_mmu_output(mmu_output)
-  assert (mmu_output[2] == 1)
-  
+  assert (mmu_output[2] == 1)  
   mmu_output = linear.map(t5)
-  print_mmu_output(mmu_output)
   assert (mmu_output[2] == 0)
-  print()
 
 def hierarchical_simple_page_fault_test():
-  print("HIERARCHICAL")
+  print("HIERARCHICAL: SIMPLE PAGE FAULT TEST")
   # Hierarchical
   t1 = 4294967295 # 1111111111 1111111111 111111111111 # 2 page faults
   t2 = 4294840256 # 1111111111 1111100000 111111000000 # 1 page faults
@@ -46,28 +36,18 @@ def hierarchical_simple_page_fault_test():
 
   hierarchical = MMU("hierarchical")
   mmu_output = hierarchical.map(t1)
-  print_mmu_output(mmu_output)
   assert (mmu_output[2] == 2)
-
   mmu_output = hierarchical.map(t2)
-  print_mmu_output(mmu_output)
   assert (mmu_output[2] == 1)
-  
   mmu_output = hierarchical.map(t3)
-  print_mmu_output(mmu_output)
   assert (mmu_output[2] == 0)
-  
   mmu_output = hierarchical.map(t4)
-  print_mmu_output(mmu_output)
   assert (mmu_output[2] == 2)
-  
   mmu_output = hierarchical.map(t5)
-  print_mmu_output(mmu_output)
   assert (mmu_output[2] == 0)
-  print()
 
 def inverted_simple_page_fault_test():
-  print("INVERTED")
+  print("INVERTED: SIMPLE PAGE FAULT TEST")
   # Interted
   t1 = 18446744073709551615 # 1111111111111111111111 111111111111111111111111111111 111111111111 # 1 page faults
   t2 = 18446744073709043711 # 1111111111111111111111 111111111111111111111110000011 111111111111 # 1 page faults
@@ -77,28 +57,102 @@ def inverted_simple_page_fault_test():
   
   inverted = MMU("inverted")
   mmu_output = inverted.map(t1)
-  print_mmu_output(mmu_output)
   assert (mmu_output[2] == 1)
-
   mmu_output = inverted.map(t2)
-  print_mmu_output(mmu_output)
   assert (mmu_output[2] == 1)
-  
   mmu_output = inverted.map(t3)
-  print_mmu_output(mmu_output)
   assert (mmu_output[2] == 1)
-  
   mmu_output = inverted.map(t4)
-  print_mmu_output(mmu_output)
   assert (mmu_output[2] == 0)
-  
   mmu_output = inverted.map(t5)
-  print_mmu_output(mmu_output)
   assert (mmu_output[2] == 0)
-  print()
+
+def linear_heavy_page_fault_test():
+  print("LINEAR: HEAVY PAGE FAULT TEST")
+  linear = MMU("linear")
+  n_pages_to_access = 50
+
+  for i in range(n_pages_to_access):
+    offset = bin(4095)[2:] # max offset number
+    virtual_address = int(bin(i)[2:] + offset, 2)
+    assert(linear.map(virtual_address)[2] == 1)
+    assert(linear.map(virtual_address)[2] == 0)
+  
+  address_table = linear.mapping.physicalMemory.address_table
+  for address, _ in address_table.items():
+    address_table[address] = True
+  
+  for i in range(n_pages_to_access, n_pages_to_access * 2):
+    offset = bin(4095)[2:] # max offset number
+    virtual_address = int(bin(i)[2:] + offset, 2)
+    assert(linear.map(virtual_address)[2] == 1)
+    assert(linear.map(virtual_address)[2] == 0)
+  
+  for i in range(n_pages_to_access):
+    offset = bin(4095)[2:] # max offset number
+    virtual_address = int(bin(i)[2:] + offset, 2)
+    assert(linear.map(virtual_address)[2] == 1)
+    assert(linear.map(virtual_address)[2] == 0)
+  
+def hierarchical_heavy_page_fault_test():
+  print("HIERARCHICAL: HEAVY PAGE FAULT TEST")
+  linear = MMU("hierarchical")
+  n_pages_to_access = 50
+
+  for i in range(n_pages_to_access):
+    offset = bin(4095)[2:] # max offset number
+    virtual_address = int(bin(i)[2:] + offset, 2)
+    assert(linear.map(virtual_address)[2] != 0)
+    assert(linear.map(virtual_address)[2] == 0)
+
+  address_table = linear.mapping.physicalMemory.address_table
+  for address, _ in address_table.items():
+    address_table[address] = True
+  
+  for i in range(n_pages_to_access, n_pages_to_access * 2):
+    offset = bin(4095)[2:] # max offset number
+    virtual_address = int(bin(i)[2:] + offset, 2)
+    assert(linear.map(virtual_address)[2] != 0)
+    assert(linear.map(virtual_address)[2] == 0)
+   
+  for i in range(n_pages_to_access):
+    offset = bin(4095)[2:] # max offset number
+    virtual_address = int(bin(i)[2:] + offset, 2)
+    assert(linear.map(virtual_address)[2] != 0)
+    assert(linear.map(virtual_address)[2] == 0)
+
+def inverted_heavy_page_fault_test():
+  print("INVERTED: HEAVY PAGE FAULT TEST")
+  linear = MMU("inverted")
+  n_pages_to_access = 50
+
+  for i in range(n_pages_to_access):
+    offset = bin(4095)[2:] # max offset number
+    virtual_address = int(bin(i)[2:] + offset, 2)
+    assert(linear.map(virtual_address)[2] == 1)
+    assert(linear.map(virtual_address)[2] == 0)
+  
+  address_table = linear.mapping.physicalMemory.address_table
+  for address, _ in address_table.items():
+    address_table[address] = True
+  
+  for i in range(n_pages_to_access, n_pages_to_access * 2):
+    offset = bin(4095)[2:] # max offset number
+    virtual_address = int(bin(i)[2:] + offset, 2)
+    assert(linear.map(virtual_address)[2] == 1)
+    assert(linear.map(virtual_address)[2] == 0)
+  
+  for i in range(n_pages_to_access):
+    offset = bin(4095)[2:] # max offset number
+    virtual_address = int(bin(i)[2:] + offset, 2)
+    assert(linear.map(virtual_address)[2] == 1)
+    assert(linear.map(virtual_address)[2] == 0)
 
 if __name__ == '__main__':
   linear_simple_page_fault_test()
+  linear_heavy_page_fault_test()
   hierarchical_simple_page_fault_test()
+  hierarchical_heavy_page_fault_test()
   inverted_simple_page_fault_test()
+  inverted_heavy_page_fault_test()
   

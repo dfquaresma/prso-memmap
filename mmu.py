@@ -105,6 +105,7 @@ class LinearMapping(object):
 
             self.physicalMemory.put(hw_begin)
             self.page_table[page_id] = hw_begin
+            self.swap.put(page_id)
         
         hw_address = hw_begin + offset
         return hw_address, hw_begin // self.page_size, n_pagefaults
@@ -146,7 +147,7 @@ class InvertedMapping(object):
       self.page_table = []
     
     def map(self, virtual_address):        
-        virtual_address = format(virtual_address, "032b")
+        virtual_address = format(virtual_address, "064b")
         pid = int(virtual_address[:22], 2)
         page_id = int(virtual_address[22:52], 2)
         offset = int(virtual_address[52:], 2)
@@ -166,10 +167,13 @@ class InvertedMapping(object):
                 page_to_remove = self.swap.evict()
                 index = self.page_table.index(page_to_remove)
                 self.page_table[index] = page
+                hw_begin = index
             else:
                 self.page_table.append(page)
                 hw_begin = (len(self.page_table) - 1) * self.page_size
                 self.physicalMemory.put(hw_begin)
+
+            self.swap.put(page)
         
         hw_address = hw_begin + offset
         frame_id = hw_begin
