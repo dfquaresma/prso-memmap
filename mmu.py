@@ -48,10 +48,16 @@ class PhysicalMemory(object):
             self.address_table[address] = False
 
     def get(self):
-        for address, in_use in  self.address_table.items():
+        for address, in_use in self.address_table.items():
             if not in_use: 
                 return address
     
+    def total_of_free_page(self):
+        count = 0
+        for address, in_use in self.address_table.items():
+            count += 1
+        return count
+
     def put(self, mem_address):
         self.address_table[mem_address] = True
 
@@ -60,15 +66,30 @@ class PhysicalMemory(object):
 
 class LinearMapping(object):
 
-    def __init__(self, memory_size=2147483648, page_size=4096, physicalMemory=None):
+    def __init__(self, memory_size=2147483648, page_size=1024, physicalMemory=None, bytes_required_for_mapping=None, key_size = None):
       super(LinearMapping, self).__init__()
-      if not physicalMemory:
+      used_by_hierarchical_mapping = not physicalMemory and not bytes_required_for_mapping and not key_size
+      if used_by_hierarchical_mapping:
           physicalMemory = PhysicalMemory(memory_size, page_size)
+          bytes_required_for_mapping = 5 # 20 bits for key, 20 for value
+          key_size = 2 ** 20
 
       self.physicalMemory = physicalMemory
       self.page_size = page_size
       self.page_table = {}
       self.swap = SecondChance()
+      self.bytes_required_for_mapping = bytes_required_for_mapping
+      self.mem_allocated = []
+      self.key_size = key_size
+
+      number_of_pages_to_page_table = self.key_size // page_size * bytes_required_for_mapping
+      for i in range(number_of_pages_to_page_table): # fill memory with page table
+          not_used_mem = self.physicalMemory.get()
+          self.physicalMemory.put(not_used_mem)
+
+    def free_memory():
+      for mem in range(self.mem_allocated): # erase used memory by page table
+          self.physicalMemory.clear(mem)
 
     def map(self, virtual_address, page_id=None, offset=None):
         if page_id == None and offset == None:
@@ -112,9 +133,12 @@ class LinearMapping(object):
 
 class HierarchicalMapping(object):
 
-    def __init__(self, memory_size=2147483648, page_size=4096):
+    def __init__(self, memory_size=2147483648, page_size=1024):
       super(HierarchicalMapping, self).__init__()
       self.physicalMemory = PhysicalMemory(memory_size, page_size)
+      self.memory_size = memory_size
+      self.page_size = page_size
+      self.swap = SecondChance()
       self.PT1_table = {}
 
     def map(self, virtual_address):
@@ -126,7 +150,19 @@ class HierarchicalMapping(object):
         pagefault = 0
         if PT1 not in self.PT1_table:
             pagefault += 1
-            self.PT1_table[PT1] = LinearMapping(physicalMemory=self.physicalMemory)
+            total_of_free_page = self.physicalMemory.total_of_free_page()
+            if total_of_free_page < 8: # our intern tables uses only 8 pages
+                table_to_remove = self.swap.evict()
+                for table_id, table in self.PT1_table.items():
+                    if table == table_to_remove:
+                        table_to_remove.free_memory()
+                        del self.PT1_table[table_id]
+                        break
+
+            bytes_required_for_mapping = 4 # 10 bits for key, 20 for value
+            key_size = 2 ** 10 # 10 bits for PT2, only
+            self.PT1_table[PT1] = LinearMapping(physicalMemory=self.physicalMemory, bytes_required_for_mapping = 4, key_size=key_size)
+            self.swap.put( self.PT1_table[PT1])
 
         PT2_table = self.PT1_table[PT1]
         hw_address, frame_id , n_pagefaults = PT2_table.map(virtual_address, page_id=PT2, offset=offset)
@@ -145,6 +181,12 @@ class InvertedMapping(object):
       self.swap = SecondChance()
       self.page_size = page_size
       self.page_table = []
+      number_of_pages = memory_size // page_size
+      bytes_required_for_mapping = 7 # 22 bits for pid, 30 for pageId in table
+      number_of_pages_to_page_table = number_of_pages // page_size * bytes_required_for_mapping
+      for i in range(number_of_pages_to_page_table): # fill memory with page table
+          not_used_mem = self.physicalMemory.get()
+          self.physicalMemory.put(not_used_mem)
     
     def map(self, virtual_address):        
         virtual_address = format(virtual_address, "064b")
