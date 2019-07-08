@@ -51,9 +51,9 @@ def inverted_simple_page_fault_test():
   # Interted
   t1 = 18446744073709551615 # 1111111111111111111111 111111111111111111111111111111 111111111111 # 1 page faults
   t2 = 18446744073709043711 # 1111111111111111111111 111111111111111111111110000011 111111111111 # 1 page faults
-  t3 = 18446185521737629695 # 1111111111111110000000 111111111111111100000111111111 111111111111 # 0 page faults
+  t3 = 18446744073709551584 # 1111111111111111111111 111111111111111111111111111111 111111100000 # 0 page faults
   t4 = 18446185521737629695 # 1111111111111110000000 111111111111111100000111111111 111111111111 # 1 page faults
-  t5 = 18446744073709551584 # 1111111111111111111111 111111111111111111111111111111 111111100000 # 0 page faults
+  t5 = 18446185521737629695 # 1111111111111110000000 111111111111111100000111111111 111111111111 # 0 page faults
   
   inverted = MMU("inverted")
   mmu_output = inverted.map(t1)
@@ -61,9 +61,9 @@ def inverted_simple_page_fault_test():
   mmu_output = inverted.map(t2)
   assert (mmu_output[2] == 1)
   mmu_output = inverted.map(t3)
-  assert (mmu_output[2] == 1)
-  mmu_output = inverted.map(t4)
   assert (mmu_output[2] == 0)
+  mmu_output = inverted.map(t4)
+  assert (mmu_output[2] == 1)
   mmu_output = inverted.map(t5)
   assert (mmu_output[2] == 0)
 
@@ -179,10 +179,10 @@ def inverted_heavy_page_fault_test():
     assert(linear.map(virtual_address)[2] == 0)
 
 if __name__ == '__main__':
-  linear_simple_page_fault_test()
-  hierarchical_simple_page_fault_test()
+  #linear_simple_page_fault_test()
+  #hierarchical_simple_page_fault_test()
   inverted_simple_page_fault_test()
-  linear_heavy_page_fault_test()
-  hierarchical_heavy_page_fault_test()
-  inverted_heavy_page_fault_test()
+  #linear_heavy_page_fault_test()
+  #hierarchical_heavy_page_fault_test()
+  #inverted_heavy_page_fault_test()
   

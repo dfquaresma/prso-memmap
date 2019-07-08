@@ -206,7 +206,7 @@ class InvertedMapping(object):
         hw_begin, n_pagefaults = None, 0 # tmp values
         for i in range(len(self.page_table)):
             page = self.page_table[i]
-            if page != None and page.pid == pid and page.page_id == page_id:
+            if page.pid == pid and page.page_id == page_id:
                 hw_begin = i * self.page_size
                 break
         
