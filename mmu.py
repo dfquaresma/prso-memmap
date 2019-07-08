@@ -142,7 +142,7 @@ class HierarchicalMapping(object):
       self.swap = SecondChance()
       self.PT1_table = {}
 
-      bytes_required_for_mapping = 4 # 10 bits for key, 20 for value
+      bytes_required_for_mapping = 5 # 10 bits for PT1, 20 for value, 10 for second-chance table
       key_size = 2 ** 10 # 10 bits for PT1, only
       number_of_pages_to_PT1_table = key_size // page_size * bytes_required_for_mapping
       for i in range(number_of_pages_to_PT1_table): # fill memory with page table
@@ -167,7 +167,7 @@ class HierarchicalMapping(object):
                         del self.PT1_table[table_id]
                         break
 
-            bytes_required_for_mapping = 5 # 10 bits for key, 20 for value, 10 for second-chance table
+            bytes_required_for_mapping = 5 # 10 bits for PT2, 20 for value, 10 for second-chance table
             key_size = 2 ** 10 # 10 bits for PT2, only
             number_of_pages_to_PT2_table = key_size // self.page_size * bytes_required_for_mapping
             self.PT1_table[PT1] = LinearMapping(physicalMemory=self.physicalMemory, number_of_pages_to_page_table=number_of_pages_to_PT2_table)
