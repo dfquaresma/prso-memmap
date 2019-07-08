@@ -179,10 +179,9 @@ def inverted_heavy_page_fault_test():
     assert(linear.map(virtual_address)[2] == 0)
 
 if __name__ == '__main__':
-  #linear_simple_page_fault_test()
-  #hierarchical_simple_page_fault_test()
+  linear_simple_page_fault_test()
+  hierarchical_simple_page_fault_test()
   inverted_simple_page_fault_test()
-  #linear_heavy_page_fault_test()
-  #hierarchical_heavy_page_fault_test()
-  #inverted_heavy_page_fault_test()
-  
+  linear_heavy_page_fault_test()
+  hierarchical_heavy_page_fault_test()
+  inverted_heavy_page_fault_test()
