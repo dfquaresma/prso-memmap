@@ -73,7 +73,7 @@ class LinearMapping(object):
       used_by_hierarchical_mapping = not physicalMemory and not number_of_pages_to_page_table
       if used_by_hierarchical_mapping:
           physicalMemory = PhysicalMemory(memory_size, page_size)
-          bytes_required_for_mapping = 5 # 20 bits for key, 20 for value
+          bytes_required_for_mapping = 8 # 20 bits for key, 20 for value, 20 for second-chance table
           key_size = 2 ** 20
           number_of_pages_to_page_table = key_size // page_size * bytes_required_for_mapping
 
@@ -167,7 +167,7 @@ class HierarchicalMapping(object):
                         del self.PT1_table[table_id]
                         break
 
-            bytes_required_for_mapping = 4 # 10 bits for key, 20 for value
+            bytes_required_for_mapping = 5 # 10 bits for key, 20 for value, 10 for second-chance table
             key_size = 2 ** 10 # 10 bits for PT2, only
             number_of_pages_to_PT2_table = key_size // self.page_size * bytes_required_for_mapping
             self.PT1_table[PT1] = LinearMapping(physicalMemory=self.physicalMemory, number_of_pages_to_page_table=number_of_pages_to_PT2_table)
